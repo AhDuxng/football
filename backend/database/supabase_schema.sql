@@ -1,7 +1,25 @@
--- Football Team Management - Supabase PostgreSQL Schema
--- Includes: enums, tables, constraints, indexes, helper functions, triggers, and RLS policies.
-
 create extension if not exists pgcrypto;
+
+-- drop table if exists public.tactics cascade;
+-- drop table if exists public.practice_sessions cascade;
+-- drop table if exists public.team_fund_contributions cascade;
+-- drop table if exists public.team_fund_months cascade;
+-- drop table if exists public.finances cascade;
+-- drop table if exists public.match_events cascade;
+-- drop table if exists public.matches cascade;
+-- drop table if exists public.invitations_requests cascade;
+-- drop table if exists public.team_members cascade;
+-- drop table if exists public.teams cascade;
+-- drop table if exists public.users cascade;
+
+-- drop type if exists public.finance_type cascade;
+-- drop type if exists public.match_event_type cascade;
+-- drop type if exists public.match_status cascade;
+-- drop type if exists public.invitation_status cascade;
+-- drop type if exists public.invitation_type cascade;
+-- drop type if exists public.preferred_position cascade;
+-- drop type if exists public.team_role cascade;
+-- drop type if exists public.system_role cascade;
 
 do $$
 begin
@@ -10,7 +28,7 @@ begin
   end if;
 
   if not exists (select 1 from pg_type where typname = 'team_role') then
-    create type public.team_role as enum ('CAPTAIN', 'COACH', 'PLAYER');
+    create type public.team_role as enum ('CAPTAIN', 'COACH', 'PLAYER', 'TREASURER');
   end if;
 
   if not exists (select 1 from pg_type where typname = 'preferred_position') then
@@ -86,6 +104,10 @@ create table if not exists public.team_members (
   constraint uq_team_members_user_single_team unique (user_id)
 );
 
+create unique index if not exists uq_team_members_single_captain
+  on public.team_members (team_id)
+  where team_role = 'CAPTAIN';
+
 create table if not exists public.invitations_requests (
   id uuid primary key default gen_random_uuid(),
   sender_id uuid not null references public.users(id) on delete cascade,
@@ -150,6 +172,34 @@ create table if not exists public.finances (
   constraint finances_amount_positive_chk check (amount > 0)
 );
 
+create table if not exists public.team_fund_months (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references public.teams(id) on delete cascade,
+  month date not null,
+  amount_per_member numeric(12, 2) not null default 0,
+  created_by uuid references public.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint team_fund_months_unique unique (team_id, month),
+  constraint team_fund_months_amount_non_negative check (amount_per_member >= 0)
+);
+
+create table if not exists public.team_fund_contributions (
+  id uuid primary key default gen_random_uuid(),
+  team_id uuid not null references public.teams(id) on delete cascade,
+  month date not null,
+  user_id uuid not null references public.users(id) on delete cascade,
+  finance_entry_id uuid references public.finances(id) on delete set null,
+  amount numeric(12, 2) not null default 0,
+  is_paid boolean not null default false,
+  paid_at timestamptz,
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint team_fund_contributions_unique unique (team_id, month, user_id),
+  constraint team_fund_contributions_amount_non_negative check (amount >= 0)
+);
+
 create table if not exists public.practice_sessions (
   id uuid primary key default gen_random_uuid(),
   team_id uuid not null references public.teams(id) on delete cascade,
@@ -180,6 +230,9 @@ create index if not exists idx_matches_team_match_date on public.matches (team_i
 create index if not exists idx_match_events_match_id on public.match_events (match_id);
 create index if not exists idx_match_events_user_id on public.match_events (user_id);
 create index if not exists idx_finances_team_created_at on public.finances (team_id, created_at desc);
+create index if not exists idx_team_fund_months_team_month on public.team_fund_months (team_id, month desc);
+create index if not exists idx_team_fund_contributions_team_month on public.team_fund_contributions (team_id, month desc);
+create index if not exists idx_team_fund_contributions_user on public.team_fund_contributions (user_id);
 create index if not exists idx_practice_sessions_team_date on public.practice_sessions (team_id, session_date desc);
 
 create or replace function public.set_updated_at()
@@ -213,6 +266,18 @@ execute function public.set_updated_at();
 drop trigger if exists trg_tactics_set_updated_at on public.tactics;
 create trigger trg_tactics_set_updated_at
 before update on public.tactics
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists trg_team_fund_months_set_updated_at on public.team_fund_months;
+create trigger trg_team_fund_months_set_updated_at
+before update on public.team_fund_months
+for each row
+execute function public.set_updated_at();
+
+drop trigger if exists trg_team_fund_contributions_set_updated_at on public.team_fund_contributions;
+create trigger trg_team_fund_contributions_set_updated_at
+before update on public.team_fund_contributions
 for each row
 execute function public.set_updated_at();
 
@@ -276,6 +341,22 @@ as $$
   );
 $$;
 
+create or replace function public.is_team_finance_manager(target_team_id uuid, target_user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.team_members tm
+    where tm.team_id = target_team_id
+      and tm.user_id = target_user_id
+      and tm.team_role in ('CAPTAIN', 'TREASURER')
+  );
+$$;
+
 alter table public.users enable row level security;
 alter table public.teams enable row level security;
 alter table public.team_members enable row level security;
@@ -285,6 +366,8 @@ alter table public.match_events enable row level security;
 alter table public.finances enable row level security;
 alter table public.practice_sessions enable row level security;
 alter table public.tactics enable row level security;
+alter table public.team_fund_months enable row level security;
+alter table public.team_fund_contributions enable row level security;
 
 drop policy if exists users_select_policy on public.users;
 create policy users_select_policy
@@ -570,7 +653,7 @@ on public.finances
 for insert
 to authenticated
 with check (
-  public.get_team_role(team_id) = 'CAPTAIN'
+  public.is_team_finance_manager(team_id)
   or public.is_admin()
 );
 
@@ -580,11 +663,11 @@ on public.finances
 for update
 to authenticated
 using (
-  public.get_team_role(team_id) = 'CAPTAIN'
+  public.is_team_finance_manager(team_id)
   or public.is_admin()
 )
 with check (
-  public.get_team_role(team_id) = 'CAPTAIN'
+  public.is_team_finance_manager(team_id)
   or public.is_admin()
 );
 
@@ -594,7 +677,95 @@ on public.finances
 for delete
 to authenticated
 using (
-  public.get_team_role(team_id) = 'CAPTAIN'
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_months_select_policy on public.team_fund_months;
+create policy team_fund_months_select_policy
+on public.team_fund_months
+for select
+to authenticated
+using (
+  public.is_team_member(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_months_insert_policy on public.team_fund_months;
+create policy team_fund_months_insert_policy
+on public.team_fund_months
+for insert
+to authenticated
+with check (
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_months_update_policy on public.team_fund_months;
+create policy team_fund_months_update_policy
+on public.team_fund_months
+for update
+to authenticated
+using (
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+)
+with check (
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_months_delete_policy on public.team_fund_months;
+create policy team_fund_months_delete_policy
+on public.team_fund_months
+for delete
+to authenticated
+using (
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_contributions_select_policy on public.team_fund_contributions;
+create policy team_fund_contributions_select_policy
+on public.team_fund_contributions
+for select
+to authenticated
+using (
+  public.is_team_member(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_contributions_insert_policy on public.team_fund_contributions;
+create policy team_fund_contributions_insert_policy
+on public.team_fund_contributions
+for insert
+to authenticated
+with check (
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_contributions_update_policy on public.team_fund_contributions;
+create policy team_fund_contributions_update_policy
+on public.team_fund_contributions
+for update
+to authenticated
+using (
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+)
+with check (
+  public.is_team_finance_manager(team_id)
+  or public.is_admin()
+);
+
+drop policy if exists team_fund_contributions_delete_policy on public.team_fund_contributions;
+create policy team_fund_contributions_delete_policy
+on public.team_fund_contributions
+for delete
+to authenticated
+using (
+  public.is_team_finance_manager(team_id)
   or public.is_admin()
 );
 
