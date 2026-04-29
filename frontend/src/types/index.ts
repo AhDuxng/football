@@ -1,5 +1,5 @@
 export type SystemRole = "ADMIN" | "USER";
-export type TeamRole = "CAPTAIN" | "COACH" | "PLAYER";
+export type TeamRole = "CAPTAIN" | "COACH" | "TREASURER" | "PLAYER";
 export type PreferredPosition =
   | "GK"
   | "RB"
@@ -184,6 +184,34 @@ export interface FinanceEntry {
 export interface FinanceSummary {
   totalFund: number;
   entries: FinanceEntry[];
+}
+
+export interface FundMemberContribution {
+  userId: string;
+  teamRole: TeamRole;
+  preferredPosition: PreferredPosition | null;
+  profile: {
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+    email: string;
+  };
+  amount: number;
+  isPaid: boolean;
+  paidAt: string | null;
+  note: string | null;
+  financeEntryId: string | null;
+}
+
+export interface FundMonthSummary {
+  month: string;
+  amountPerMember: number;
+  members: FundMemberContribution[];
+  totals: {
+    expectedAmount: number;
+    collectedAmount: number;
+    outstandingAmount: number;
+  };
 }
 
 export interface NotificationItem {

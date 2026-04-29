@@ -7,6 +7,7 @@ import type { PreferredPosition, TeamRole } from "../../types";
 const ROLE_LABELS: Record<TeamRole, string> = {
   CAPTAIN: "Đội trưởng",
   COACH: "Huấn luyện viên",
+  TREASURER: "Thủ quỹ",
   PLAYER: "Cầu thủ",
 };
 

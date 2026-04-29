@@ -46,16 +46,16 @@ export const updateTeamSchema = z
     description: z.string().trim().max(1000).nullable().optional(),
   })
   .refine((payload) => Object.keys(payload).length > 0, {
-    message: "At least one team field must be provided for update.",
+    message: "Cần ít nhất một trường của đội để cập nhật.",
   });
 
 export const updateTeamMemberSchema = z
   .object({
-    teamRole: z.enum(["CAPTAIN", "COACH", "PLAYER"]).optional(),
+    teamRole: z.enum(["CAPTAIN", "COACH", "TREASURER", "PLAYER"]).optional(),
     preferredPosition: positionEnum.nullable().optional(),
   })
   .refine((payload) => Object.keys(payload).length > 0, {
-    message: "At least one member field must be provided for update.",
+    message: "Cần ít nhất một trường của thành viên để cập nhật.",
   });
 
 export const upsertTacticsSchema = z.object({
@@ -67,7 +67,7 @@ export const createPracticeSplitSchema = z
   .object({
     sessionDate: z
       .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/, "sessionDate must be in YYYY-MM-DD format")
+      .regex(/^\d{4}-\d{2}-\d{2}$/, "sessionDate phải theo định dạng YYYY-MM-DD")
       .optional(),
     mode: z.enum(["RANDOM", "MANUAL"]).default("RANDOM"),
     teamARoster: z.array(uuidSchema).optional(),
@@ -79,7 +79,7 @@ export const createPracticeSplitSchema = z
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           path: ["teamARoster"],
-          message: "teamARoster and teamBRoster are required in MANUAL mode.",
+          message: "teamARoster và teamBRoster là bắt buộc khi ở chế độ MANUAL.",
         });
       }
     }

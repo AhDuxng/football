@@ -1,8 +1,8 @@
 export const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("en-GB", {
+  return new Intl.NumberFormat("vi-VN", {
     style: "currency",
-    currency: "GBP",
-    maximumFractionDigits: 2,
+    currency: "VND",
+    maximumFractionDigits: 0,
   }).format(value);
 };
 

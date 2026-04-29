@@ -1,4 +1,4 @@
-import type { FinanceSummary } from "../types";
+import type { FinanceSummary, FundMonthSummary } from "../types";
 import { apiRequest } from "./http";
 
 export const financeService = {
@@ -52,5 +52,78 @@ export const financeService = {
       token,
       body: payload,
     });
+  },
+
+  async getMonthlyContributions(
+    token: string,
+    teamId: string,
+    month?: string
+  ): Promise<FundMonthSummary> {
+    const query = month ? `?month=${month}` : "";
+    const data = await apiRequest<FundMonthSummary>(
+      `/finances/team/${teamId}/contributions${query}`,
+      { token }
+    );
+
+    return {
+      ...data,
+      amountPerMember: Number(data.amountPerMember),
+      members: data.members.map((member) => ({
+        ...member,
+        amount: Number(member.amount),
+      })),
+      totals: {
+        expectedAmount: Number(data.totals.expectedAmount),
+        collectedAmount: Number(data.totals.collectedAmount),
+        outstandingAmount: Number(data.totals.outstandingAmount),
+      },
+    };
+  },
+
+  async setMonthlyAmount(
+    token: string,
+    teamId: string,
+    payload: { month: string; amountPerMember: number; applyToAll?: boolean }
+  ) {
+    await apiRequest(`/finances/team/${teamId}/contributions`, {
+      method: "PUT",
+      token,
+      body: payload,
+    });
+  },
+
+  async updateContribution(
+    token: string,
+    teamId: string,
+    userId: string,
+    payload: {
+      month: string;
+      amount?: number;
+      isPaid?: boolean;
+      note?: string;
+    }
+  ): Promise<FundMonthSummary> {
+    const data = await apiRequest<FundMonthSummary>(
+      `/finances/team/${teamId}/contributions/${userId}`,
+      {
+        method: "PATCH",
+        token,
+        body: payload,
+      }
+    );
+
+    return {
+      ...data,
+      amountPerMember: Number(data.amountPerMember),
+      members: data.members.map((member) => ({
+        ...member,
+        amount: Number(member.amount),
+      })),
+      totals: {
+        expectedAmount: Number(data.totals.expectedAmount),
+        collectedAmount: Number(data.totals.collectedAmount),
+        outstandingAmount: Number(data.totals.outstandingAmount),
+      },
+    };
   },
 };

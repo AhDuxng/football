@@ -98,7 +98,33 @@ class TeamCommandService {
       actorMembership.team_role !== "CAPTAIN" &&
       actorSystemRole !== "ADMIN"
     ) {
-      throw new AppError("Chỉ đội trưởng mới có thể thăng chức thành viên khác lên đội trưởng.", 403);    }
+      throw new AppError("Chỉ đội trưởng mới có thể thăng chức thành viên khác lên đội trưởng.", 403);
+    }
+
+    if (
+      payload.teamRole === "TREASURER" &&
+      actorMembership.team_role !== "CAPTAIN" &&
+      actorSystemRole !== "ADMIN"
+    ) {
+      throw new AppError("Chỉ đội trưởng mới có thể bổ nhiệm thủ quỹ.", 403);
+    }
+
+    if (
+      payload.teamRole === "CAPTAIN" &&
+      targetMembership.team_role !== "CAPTAIN"
+    ) {
+      const { count: captainCount, error: captainCountError } = await this.db
+        .from("team_members")
+        .select("user_id", { head: true, count: "exact" })
+        .eq("team_id", teamId)
+        .eq("team_role", "CAPTAIN");
+
+      throwTeamDbError(captainCountError, "Không thể kiểm tra số lượng đội trưởng.", 500);
+
+      if ((captainCount ?? 0) >= 1) {
+        throw new AppError("Mỗi đội chỉ có một đội trưởng.", 409);
+      }
+    }
 
     if (
       targetMembership.team_role === "CAPTAIN" &&

@@ -23,7 +23,14 @@ const POSITION_OPTIONS: PreferredPosition[] = [
   'ST',
 ];
 
-const TEAM_ROLE_OPTIONS: TeamRole[] = ['CAPTAIN', 'COACH', 'PLAYER'];
+const TEAM_ROLE_OPTIONS: TeamRole[] = ['CAPTAIN', 'COACH', 'TREASURER', 'PLAYER'];
+
+const ROLE_LABELS: Record<TeamRole, string> = {
+  CAPTAIN: 'Đội trưởng',
+  COACH: 'Huấn luyện viên',
+  TREASURER: 'Thủ quỹ',
+  PLAYER: 'Cầu thủ',
+};
 
 const Squad = () => {
   const {
@@ -388,7 +395,10 @@ const Squad = () => {
       <div>
         <h1 className="text-3xl font-bold text-[var(--color-dark)] mb-1">Quản lý đội hình</h1>
         <p className="text-gray-500">
-          Đội: {teamContext.team.name} | Vai trò của bạn: {teamContext.membership?.teamRole}
+          Đội: {teamContext.team.name} | Vai trò của bạn:{' '}
+          {teamContext.membership?.teamRole
+            ? ROLE_LABELS[teamContext.membership.teamRole]
+            : 'Chưa có'}
         </p>
       </div>
 
@@ -451,7 +461,7 @@ const Squad = () => {
                   >
                     {TEAM_ROLE_OPTIONS.map((roleOption) => (
                       <option key={roleOption} value={roleOption}>
-                        {roleOption}
+                        {ROLE_LABELS[roleOption]}
                       </option>
                     ))}
                   </select>
