@@ -360,7 +360,7 @@ const Finance = () => {
                       type="button"
                       disabled={!canEditFinance || isBusy}
                       onClick={() => handleUpdateMemberAmount(userId)}
-                      className="mt-2 text-xs font-semibold text-[var(--color-primary)] disabled:opacity-60"
+                      className="mt-2 ml-4 text-xs font-semibold text-[var(--color-primary)] disabled:opacity-60"
                     >
                       Lưu mức đóng
                     </button>
@@ -368,7 +368,7 @@ const Finance = () => {
                   <td className="py-3 pr-3">
                     <span
                       className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-semibold ${
-                        isPaid ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        isPaid ? 'bg-emerald-100 text-emerald-500' : 'bg-amber-100 text-amber-500'
                       }`}
                     >
                       {isPaid ? 'Đã đóng' : 'Chưa đóng'}
@@ -396,8 +396,8 @@ const Finance = () => {
                       type="button"
                       disabled={!canEditFinance || isBusy}
                       onClick={() => handleTogglePaid(userId, !isPaid)}
-                      className={`rounded-md px-3 py-1 text-xs font-semibold text-white disabled:opacity-60 ${
-                        isPaid ? 'bg-gray-400' : 'bg-emerald-600'
+                      className={`rounded-md px-3 py-1 text-xs font-semibold cursor-pointer text-white disabled:opacity-60 ${
+                        isPaid ? 'bg-gray-200' : 'bg-green-500'
                       }`}
                     >
                       {isPaid ? 'Hủy đã đóng' : 'Xác nhận đã đóng'}
