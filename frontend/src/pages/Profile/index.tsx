@@ -69,7 +69,7 @@ const Profile = () => {
     }
 
     if (!file.type.startsWith("image/")) {
-      setError("Vui lòng chọn một tệp ảnh hợp lệ.");
+      setError("Vui lòng chọn một ảnh hợp lệ.");
       event.target.value = "";
       return;
     }
